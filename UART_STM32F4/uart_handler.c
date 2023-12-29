@@ -12,8 +12,8 @@ void UART_InstanceInit(UART_InstanceTypeDef *uart_instance, USART_TypeDef *UARTx
     uart_instance->RX_DMA_Stream = RX_Stream;
     uart_instance->TX_DMAx = TX_DMAx;
     uart_instance->TX_DMA_Stream = TX_Stream;
-    memset(uart_instance->rx_buffer, 0, RX_BUFFER_SIZE);
-    memset(uart_instance->tx_buffer, 0, TX_BUFFER_SIZE);
+    memset(uart_instance->rx_buffer, 0, RX_BUFFER_SIZE+1);
+    memset(uart_instance->tx_buffer, 0, TX_BUFFER_SIZE+1);
     uart_instance->rx_fifo = *fifo_s_create(RX_BUFFER_SIZE);
     uart_instance->tx_fifo = *fifo_s_create(TX_BUFFER_SIZE);
     uart_instance->rx_finished_flag = 0;

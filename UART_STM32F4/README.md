@@ -1,4 +1,6 @@
-# UART Library
+# UART Library for STM32F4
+**Reasons for non-cross platform: The STM32 LL Library using "DMA_STREAM_x" instead of "DMA_CHANNEL_x" in STM32F4**
+
 #### Usage:
 
 1. Set bi-direction DMA with "**Data Width**" set to **Byte**, and set the RX DMA with Circular Mode, the TX DMA with Normal Mode.
