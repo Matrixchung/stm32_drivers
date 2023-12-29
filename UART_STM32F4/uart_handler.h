@@ -3,10 +3,11 @@
 #include "usart.h"
 #include "fifo.h"
 #include <string.h>
-#include <stdarg.h>
+// #include <stdarg.h>
 #include <stdlib.h>
-#include "stdio.h"
+// #include "stdio.h"
 #include "utils.h"
+#include "printf.h"
 #define RX_BUFFER_SIZE 128
 #define TX_BUFFER_SIZE 128
 typedef void (*Clear_TC_Fun)(DMA_TypeDef *DMAx);
@@ -68,9 +69,7 @@ __STATIC_INLINE void UART_RegisterRxCallback(UART_InstanceTypeDef *uart_instance
     uart_instance->rx_cb = func;
 }
 
-extern UART_InstanceTypeDef UART2_Handler;
-extern UART_InstanceTypeDef UART6_Handler;
-// extern UART_InstanceTypeDef UART_GY953_Handler;
+extern UART_InstanceTypeDef UART1_Handler;
 
 void UART_InstanceInit(UART_InstanceTypeDef *uart_instance, USART_TypeDef *UARTx, DMA_TypeDef *RX_DMAx, uint32_t RX_Stream, DMA_TypeDef *TX_DMAx, uint32_t TX_Stream, uint16_t stack_size);
 void UART_printf(UART_InstanceTypeDef *uart_instance, uint8_t transmit, char *fmt, ...);

@@ -1,8 +1,6 @@
 #include "uart_handler.h"
 
-UART_InstanceTypeDef UART2_Handler;
-UART_InstanceTypeDef UART6_Handler;
-// UART_InstanceTypeDef UART_GY953_Handler;
+UART_InstanceTypeDef UART1_Handler;
 
 // stack size is used to receive fixed-size data packet
 void UART_InstanceInit(UART_InstanceTypeDef *uart_instance, USART_TypeDef *UARTx, DMA_TypeDef *RX_DMAx, uint32_t RX_Stream, DMA_TypeDef *TX_DMAx, uint32_t TX_Stream, uint16_t stack_size)

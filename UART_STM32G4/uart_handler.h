@@ -3,10 +3,10 @@
 #include "usart.h"
 #include "fifo.h"
 #include <string.h>
-#include <stdarg.h>
 #include <stdlib.h>
-#include "stdio.h"
+// #include "stdio.h"
 #include "utils.h"
+#include "printf.h"
 #define RX_BUFFER_SIZE 128
 #define TX_BUFFER_SIZE 128
 #define TX_USE_DMA 1
