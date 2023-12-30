@@ -12,8 +12,8 @@ void UART_InstanceInit(UART_InstanceTypeDef *uart_instance, USART_TypeDef *UARTx
     uart_instance->TX_DMA_Stream = TX_Stream;
     memset(uart_instance->rx_buffer, 0, RX_BUFFER_SIZE+1);
     memset(uart_instance->tx_buffer, 0, TX_BUFFER_SIZE+1);
-    uart_instance->rx_fifo = *fifo_s_create(RX_BUFFER_SIZE);
-    uart_instance->tx_fifo = *fifo_s_create(TX_BUFFER_SIZE);
+    uart_instance->rx_fifo = *kfifo_alloc(RX_BUFFER_SIZE);
+    uart_instance->tx_fifo = *kfifo_alloc(TX_BUFFER_SIZE);
     uart_instance->rx_finished_flag = 0;
     uart_instance->rx_stack_size = stack_size;
     uart_instance->rx_cb = NULL;
@@ -29,7 +29,6 @@ void UART_InstanceInit(UART_InstanceTypeDef *uart_instance, USART_TypeDef *UARTx
     // LL_DMA_EnableIT_TC(uart_instance->TX_DMAx, uart_instance->TX_DMA_Stream);
     LL_USART_EnableDMAReq_RX(uart_instance->UARTx);
     // LL_USART_EnableDMAReq_TX(uart_instance->UARTx);
-    // LL_DMA_EnableStream(uart_instance->RX_DMAx, uart_instance->RX_DMA_Stream);
     LL_DMA_EnableChannel(uart_instance->RX_DMAx, uart_instance->RX_DMA_Stream);
     // LL_DMA_EnableChannel(uart_instance->TX_DMAx, uart_instance->TX_DMA_Stream);
     LL_USART_EnableIT_IDLE(uart_instance->UARTx);
@@ -55,11 +54,14 @@ void UART_printf(UART_InstanceTypeDef *uart_instance, uint8_t transmit, char *fm
 
 void UART_TransmitFromFifo(UART_InstanceTypeDef *uart_instance)
 {
-    uint16_t len = fifo_s_used(&uart_instance->tx_fifo);
-    fifo_s_gets(&uart_instance->tx_fifo, uart_instance->tx_buffer, len);
+    // uint16_t len = fifo_s_used(&uart_instance->tx_fifo);
+    // fifo_s_gets(&uart_instance->tx_fifo, uart_instance->tx_buffer, len);
+    uint32_t len = kfifo_used(&uart_instance->tx_fifo);
+    kfifo_get(&uart_instance->tx_fifo, uart_instance->tx_buffer, len);
     #if TX_USE_DMA
     // if(uart_instance->ClearFlag_TC != NULL) uart_instance->ClearFlag_TC(uart_instance->TX_DMAx);
     // while(!uart_instance->tx_finished_flag);
+    while(LL_DMA_IsEnabledChannel(uart_instance->TX_DMAx, uart_instance->TX_DMA_Stream) && LL_DMA_GetDataLength(uart_instance->TX_DMAx, uart_instance->TX_DMA_Stream));
     LL_DMA_DisableChannel(uart_instance->TX_DMAx, uart_instance->TX_DMA_Stream);
     LL_DMA_SetPeriphAddress(uart_instance->TX_DMAx, uart_instance->TX_DMA_Stream, LL_USART_DMA_GetRegAddr(uart_instance->UARTx, LL_USART_DMA_REG_DATA_TRANSMIT));
     LL_DMA_SetMemoryAddress(uart_instance->TX_DMAx, uart_instance->TX_DMA_Stream, (uint32_t)uart_instance->tx_buffer);
@@ -77,11 +79,12 @@ void UART_TransmitFromFifo(UART_InstanceTypeDef *uart_instance)
     #endif
 }
 
-void UART_TransmitFromBuffer(UART_InstanceTypeDef *uart_instance, char *p_src, uint16_t len)
+void UART_TransmitFromBuffer(UART_InstanceTypeDef *uart_instance, char *p_src, uint32_t len)
 {
     #if TX_USE_DMA
     // if(uart_instance->ClearFlag_TC != NULL) uart_instance->ClearFlag_TC(uart_instance->TX_DMAx);
     // while(!uart_instance->tx_finished_flag);
+    while(LL_DMA_IsEnabledChannel(uart_instance->TX_DMAx, uart_instance->TX_DMA_Stream) && LL_DMA_GetDataLength(uart_instance->TX_DMAx, uart_instance->TX_DMA_Stream));
     LL_DMA_DisableChannel(uart_instance->TX_DMAx, uart_instance->TX_DMA_Stream);
     LL_DMA_SetPeriphAddress(uart_instance->TX_DMAx, uart_instance->TX_DMA_Stream, LL_USART_DMA_GetRegAddr(uart_instance->UARTx, LL_USART_DMA_REG_DATA_TRANSMIT));
     LL_DMA_SetMemoryAddress(uart_instance->TX_DMAx, uart_instance->TX_DMA_Stream, (uint32_t)p_src);
@@ -106,7 +109,7 @@ void UART_RX_IRQHandler(UART_InstanceTypeDef *uart_instance)
         LL_USART_ClearFlag_IDLE(uart_instance->UARTx);
         LL_USART_ClearFlag_ORE(uart_instance->UARTx);
         // "Once the stream is enabled, the LL_DMA_GetDataLength return value indicate the remaining bytes to be transmitted." -- STM32F4 Ref Manual
-        uint16_t len = uart_instance->rx_stack_size - LL_DMA_GetDataLength(uart_instance->RX_DMAx, uart_instance->RX_DMA_Stream);
+        uint32_t len = uart_instance->rx_stack_size - LL_DMA_GetDataLength(uart_instance->RX_DMAx, uart_instance->RX_DMA_Stream);
         if(len > RX_BUFFER_SIZE) len = RX_BUFFER_SIZE;
         if(len == 0)
         {
@@ -114,14 +117,12 @@ void UART_RX_IRQHandler(UART_InstanceTypeDef *uart_instance)
             return;
         }
         // Disable stream to make sure a reliable fifo transfer and we can SetDataLength later.
-        // LL_DMA_DisableStream(uart_instance->RX_DMAx, uart_instance->RX_DMA_Stream);
         LL_DMA_DisableChannel(uart_instance->RX_DMAx, uart_instance->RX_DMA_Stream);
-        fifo_s_puts(&uart_instance->rx_fifo, uart_instance->rx_buffer, len);
+        kfifo_put(&uart_instance->rx_fifo, uart_instance->rx_buffer, len);
         // "LL_DMA_SetDataLength has no effect if stream is enabled." So we disable stream first and re-enable it.
         LL_DMA_SetDataLength(uart_instance->RX_DMAx, uart_instance->RX_DMA_Stream, uart_instance->rx_stack_size);
-        // LL_DMA_EnableStream(uart_instance->RX_DMAx, uart_instance->RX_DMA_Stream);
-        LL_DMA_EnableChannel(uart_instance->RX_DMAx, uart_instance->RX_DMA_Stream);
         uart_instance->rx_finished_flag = 1;
         if(uart_instance->rx_cb != NULL) uart_instance->rx_cb();
+        LL_DMA_EnableChannel(uart_instance->RX_DMAx, uart_instance->RX_DMA_Stream);
     }
 }
